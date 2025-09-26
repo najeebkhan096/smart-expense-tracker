@@ -1,14 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../modal/budget_modal.dart';
+import '../../modal/currency_modal.dart';
 import '../../modal/expense_modal.dart';
 import '../../services/firebase_service.dart';
 import '../expense/add_expense.dart';
+import '../expense/edit_expense.dart';
 
 class BudgetDetailPage extends StatelessWidget {
   final Budget budget;
+  final String userCurrency; // ← added
 
-  const BudgetDetailPage({super.key, required this.budget});
+  const BudgetDetailPage({
+    super.key,
+    required this.budget,
+    required this.userCurrency, // ← required
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -24,15 +31,32 @@ class BudgetDetailPage extends StatelessWidget {
         actions: [
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Center(
-              child: Text(
-                'Total: ',
-                style: GoogleFonts.poppins(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                  color: Colors.white,
-                ),
-              ),
+            child: StreamBuilder<List<Expense>>(
+              stream: _firebaseService.getExpensesStream(budget.id),
+              builder: (context, snapshot) {
+                double total = 0;
+                // Convert each expense to the user's selected currency
+                total = snapshot.data!
+                    .map(
+                      (e) => CurrencyManager.convert(
+                        e.amount,
+                        from: e.currencyCode ?? 'PKR',
+                        to: userCurrency,
+                      ),
+                    )
+                    .fold(0.0, (prev, element) => prev + element);
+
+                return Center(
+                  child: Text(
+                    'Total: ${CurrencyManager.format(total, userCurrency)}', // ← use userCurrency
+                    style: GoogleFonts.poppins(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                      color: Colors.white,
+                    ),
+                  ),
+                );
+              },
             ),
           ),
         ],
@@ -83,7 +107,10 @@ class BudgetDetailPage extends StatelessWidget {
                   ],
                 ),
                 child: ListTile(
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
                   title: Text(
                     expense.title,
                     style: GoogleFonts.poppins(
@@ -93,20 +120,50 @@ class BudgetDetailPage extends StatelessWidget {
                     ),
                   ),
                   subtitle: Text(
-                    'Paid by: ${expense.paidBy}\nSplit among: ${expense.splitAmong.join(', ')}',
+                    'Paid by: ${expense.paidBy.name}\nSplit among: ${expense.splitAmong.map((e) => e.name).join(', ')}',
                     style: GoogleFonts.poppins(color: Colors.white70),
                   ),
-                  trailing: Text(
-                    '\$${expense.amount.toStringAsFixed(2)}',
-                    style: GoogleFonts.poppins(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 16,
-                    ),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        CurrencyManager.format(
+                          expense.amount,
+                          expense.currencyCode ??
+                              userCurrency, // ← use userCurrency
+                        ),
+                        style: GoogleFonts.poppins(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 16,
+                        ),
+                      ),
+                      PopupMenuButton<String>(
+                        icon: const Icon(Icons.more_vert, color: Colors.white),
+                        onSelected: (value) async {
+                          if (value == 'edit') {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => EditExpensePage(
+                                  budget: budget,
+                                  expense: expense,
+                                ),
+                              ),
+                            );
+                          } else if (value == 'delete') {
+                            await _firebaseService.deleteExpense(
+                              budgetId: budget.id,
+                              expenseId: expense.id,
+                            );
+                          }
+                        },
+                        itemBuilder: (context) => const [
+                          PopupMenuItem(value: 'edit', child: Text('Edit')),
+                          PopupMenuItem(value: 'delete', child: Text('Delete')),
+                        ],
+                      ),
+                    ],
                   ),
-                  onTap: () {
-                    // Navigate to ExpenseDetailPage if needed
-                  },
                 ),
               );
             },
@@ -117,9 +174,7 @@ class BudgetDetailPage extends StatelessWidget {
         backgroundColor: Colors.orange,
         onPressed: () {
           Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => AddExpensePage(budget: budget),
-            ),
+            MaterialPageRoute(builder: (_) => AddExpensePage(budget: budget)),
           );
         },
         child: const Icon(Icons.add, color: Colors.white),

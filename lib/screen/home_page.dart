@@ -1,8 +1,10 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:smart_expense_tracker/screen/budget/edit_budget_page.dart';
+import 'package:smart_expense_tracker/screen/profile.dart';
 import '../modal/budget_modal.dart';
 import '../modal/user_modal.dart';
 import '../services/firebase_service.dart';
@@ -31,11 +33,20 @@ class HomeScreen extends StatelessWidget {
   }
 
   /// Delete budget
-  Future<void> _deleteBudget(Budget budget) async {
+  Future<void> _deleteBudget(BuildContext context, Budget budget) async {
     try {
+      debugPrint('Deleting budget: ${budget.title} (${budget.id})');
       await _firebaseService.deleteBudget(budget.id);
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Deleted budget: ${budget.title}')),
+      );
     } catch (e) {
       debugPrint('Error deleting budget: $e');
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error deleting budget: $e')));
     }
   }
 
@@ -62,6 +73,7 @@ class HomeScreen extends StatelessWidget {
         }
 
         final appUser = userSnapshot.data!;
+        debugPrint('Current user: ${appUser.name}, id=${appUser.id}');
 
         return Scaffold(
           backgroundColor: Colors.grey[100],
@@ -76,16 +88,27 @@ class HomeScreen extends StatelessWidget {
               ),
             ),
             actions: [
-              Padding(
-                padding: const EdgeInsets.only(right: 16),
-                child: CircleAvatar(
-                  radius: 20,
-                  backgroundImage: appUser.profilePic != null
-                      ? NetworkImage(appUser.profilePic!)
-                      : null,
-                  child: appUser.profilePic == null
-                      ? const Icon(Icons.person, color: Colors.white)
-                      : null,
+              InkWell(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => ProfilePage(user: appUser),
+                    ),
+                  );
+                },
+                child: Padding(
+                  padding: const EdgeInsets.only(right: 16),
+                  child: CircleAvatar(
+                    radius: 20,
+                    backgroundColor: Colors.grey[300],
+                    backgroundImage: appUser.profilePic != null
+                        ? CachedNetworkImageProvider(appUser.profilePic!)
+                        : null,
+                    child: appUser.profilePic == null
+                        ? const Icon(Icons.person, color: Colors.white)
+                        : null,
+                  ),
                 ),
               ),
             ],
@@ -119,6 +142,10 @@ class HomeScreen extends StatelessWidget {
                 }
 
                 final budgets = budgetSnapshot.data!;
+                debugPrint(
+                  'Streaming ${budgets.length} budgets for user ${appUser.id}',
+                );
+
                 return ListView.builder(
                   padding: const EdgeInsets.all(16),
                   itemCount: budgets.length,
@@ -132,7 +159,7 @@ class HomeScreen extends StatelessWidget {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => BudgetDetailPage(budget: budget),
+                            builder: (_) => BudgetDetailPage(budget: budget, userCurrency: appUser.currencyCode,),
                           ),
                         );
                       },
@@ -195,7 +222,7 @@ class HomeScreen extends StatelessWidget {
                                 if (value == 'edit') {
                                   _editBudget(context, budget);
                                 } else if (value == 'delete') {
-                                  _deleteBudget(budget);
+                                  _deleteBudget(context, budget);
                                 }
                               },
                               itemBuilder: (context) => [

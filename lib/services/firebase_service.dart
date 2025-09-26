@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../modal/budget_modal.dart';
 import '../modal/expense_modal.dart';
 import '../modal/user_modal.dart';
@@ -77,15 +78,15 @@ class FirebaseService {
     print('Streaming budgets for user ID: $uid');
     return _firestore
         .collection('budgets')
-        .where('members', arrayContains: uid)
+        .where('memberIds', arrayContains: uid)
         .snapshots()
         .map((snapshot) {
-      final budgets = snapshot.docs
-          .map((doc) => Budget.fromMap(doc.id, doc.data()))
-          .toList();
-      print('Streaming ${budgets.length} budgets for user $uid');
-      return budgets;
-    });
+          final budgets = snapshot.docs
+              .map((doc) => Budget.fromMap(doc.id, doc.data()))
+              .toList();
+          print('Streaming ${budgets.length} budgets for user $uid');
+          return budgets;
+        });
   }
 
   // ---------------- EXPENSES ----------------
@@ -142,12 +143,41 @@ class FirebaseService {
         .collection('expenses')
         .snapshots()
         .map((snapshot) {
-      final expenses = snapshot.docs
-          .map((doc) => Expense.fromJson(json: doc.data(), id: doc.id))
-          .toList();
-      print('Streaming ${expenses.length} expenses for budget $budgetId');
-      return expenses;
-    });
+          final expenses = snapshot.docs
+              .map((doc) => Expense.fromJson(json: doc.data(), id: doc.id))
+              .toList();
+          print('Streaming ${expenses.length} expenses for budget $budgetId');
+          return expenses;
+        });
+  }
+
+  // New: updateExpense
+  Future<void> updateExpense({
+    required String budgetId,
+    required Expense expense,
+  }) async {
+    await _firestore
+        .collection('budgets')
+        .doc(budgetId)
+        .collection('expenses')
+        .doc(expense.id)
+        .update(expense.toJson());
+  }
+  /// Delete an expense by its ID under a specific budget
+  Future<void> deleteExpense({
+    required String budgetId,
+    required String expenseId,
+  }) async {
+    try {
+      await _firestore
+          .collection('budgets')
+          .doc(budgetId)
+          .collection('expenses')
+          .doc(expenseId)
+          .delete();
+    } catch (e) {
+      throw Exception('Error deleting expense: $e');
+    }
   }
 
   // ---------------- SETTLEMENTS ----------------
@@ -160,7 +190,9 @@ class FirebaseService {
     required DateTime createdAt,
   }) async {
     try {
-      print('Adding settlement of $amount from $paidBy to $paidTo in budget $budgetId');
+      print(
+        'Adding settlement of $amount from $paidBy to $paidTo in budget $budgetId',
+      );
       final settlementRef = _firestore
           .collection('budgets')
           .doc(budgetId)
@@ -181,24 +213,18 @@ class FirebaseService {
     }
   }
 
-  /// Get all settlements of a budget
-  Future<List<Settlement>> getSettlements({required String budgetId}) async {
-    try {
-      print('Fetching settlements for budget ID: $budgetId');
-      final snapshot = await _firestore
-          .collection('budgets')
-          .doc(budgetId)
-          .collection('settlements')
-          .get();
 
-      final settlements = snapshot.docs
-          .map((doc) => Settlement.fromJson(json: doc.data()))
-          .toList();
-      print('Fetched ${settlements.length} settlements');
-      return settlements;
-    } catch (e) {
-      print('Error in getSettlements: $e');
-      return [];
-    }
+  /// Logout the current user
+  Future<void> logout() async {
+      final FirebaseAuth _auth = FirebaseAuth.instance;
+    await _auth.signOut();
+  }
+
+  /// Example: Update user's currency in Firestore
+  Future<void> updateUserCurrency(String userId, String currencyCode) async {
+    await FirebaseFirestore.instance
+        .collection('users')
+        .doc(userId)
+        .update({'currencyCode': currencyCode});
   }
 }

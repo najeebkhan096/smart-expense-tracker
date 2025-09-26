@@ -6,20 +6,25 @@ import '../../modal/currency_modal.dart';
 import '../../modal/expense_modal.dart';
 import '../../services/firebase_service.dart';
 
-class AddExpensePage extends StatefulWidget {
+class EditExpensePage extends StatefulWidget {
   final Budget budget;
+  final Expense expense;
 
-  const AddExpensePage({super.key, required this.budget});
+  const EditExpensePage({
+    super.key,
+    required this.budget,
+    required this.expense,
+  });
 
   @override
-  State<AddExpensePage> createState() => _AddExpensePageState();
+  State<EditExpensePage> createState() => _EditExpensePageState();
 }
 
-class _AddExpensePageState extends State<AddExpensePage> {
+class _EditExpensePageState extends State<EditExpensePage> {
   final _formKey = GlobalKey<FormState>();
-  final _titleController = TextEditingController();
-  final _amountController = TextEditingController();
-  final _notesController = TextEditingController();
+  late TextEditingController _titleController;
+  late TextEditingController _amountController;
+  late TextEditingController _notesController;
 
   final FirebaseService _firebaseService = FirebaseService();
 
@@ -28,21 +33,24 @@ class _AddExpensePageState extends State<AddExpensePage> {
   bool _isLoading = false;
 
   // Currency
-  String _selectedCurrency = 'PKR';
-
-  // Split type
-  SplitType _selectedSplitType = SplitType.equal;
+  late String _selectedCurrency;
 
   @override
   void initState() {
     super.initState();
-    _splitAmong = List.from(widget.budget.members);
-    _paidBy = widget.budget.members.isNotEmpty
-        ? widget.budget.members.first
-        : null;
+    // Pre-fill the fields with existing expense data
+    _titleController = TextEditingController(text: widget.expense.title);
+    _amountController =
+        TextEditingController(text: widget.expense.amount.toString());
+    _notesController = TextEditingController(text: widget.expense.notes ?? '');
+    _paidBy = widget.expense.paidBy;
+    _splitAmong = List.from(widget.expense.splitAmong);
+
+    // Pre-fill currency
+    _selectedCurrency = widget.expense.currencyCode ?? 'PKR';
   }
 
-  Future<void> _saveExpense() async {
+  Future<void> _updateExpense() async {
     if (!_formKey.currentState!.validate() ||
         _splitAmong.isEmpty ||
         _paidBy == null) {
@@ -54,33 +62,34 @@ class _AddExpensePageState extends State<AddExpensePage> {
 
     setState(() => _isLoading = true);
 
-    final expense = Expense(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
+    final updatedExpense = Expense(
+      id: widget.expense.id,
       groupId: widget.budget.id,
       title: _titleController.text.trim(),
       amount: double.parse(_amountController.text.trim()),
       currencyCode: _selectedCurrency,
       paidBy: _paidBy!,
       splitAmong: _splitAmong,
-      splitType: _selectedSplitType, // ← added
-      createdAt: DateTime.now(),
+      createdAt: widget.expense.createdAt,
       notes: _notesController.text.trim().isEmpty
           ? null
           : _notesController.text.trim(),
     );
 
     try {
-      await _firebaseService.addExpense(
+      await _firebaseService.updateExpense(
         budgetId: widget.budget.id,
-        expense: expense,
+        expense: updatedExpense,
       );
+      if (!mounted) return;
       Navigator.of(context).pop();
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error saving expense: $e')));
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error updating expense: $e')),
+      );
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -98,7 +107,7 @@ class _AddExpensePageState extends State<AddExpensePage> {
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
         title: Text(
-          'Add Expense',
+          'Edit Expense',
           style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
         ),
         backgroundColor: Colors.deepPurple,
@@ -128,7 +137,6 @@ class _AddExpensePageState extends State<AddExpensePage> {
                   padding: const EdgeInsets.all(12),
                   child: Column(
                     children: [
-                      // Title
                       TextFormField(
                         controller: _titleController,
                         decoration: InputDecoration(
@@ -142,8 +150,6 @@ class _AddExpensePageState extends State<AddExpensePage> {
                         val == null || val.isEmpty ? 'Enter title' : null,
                       ),
                       const SizedBox(height: 12),
-
-                      // Amount
                       TextFormField(
                         controller: _amountController,
                         decoration: InputDecoration(
@@ -162,8 +168,6 @@ class _AddExpensePageState extends State<AddExpensePage> {
                         },
                       ),
                       const SizedBox(height: 12),
-
-                      // Currency
                       DropdownButtonFormField<String>(
                         value: _selectedCurrency,
                         decoration: InputDecoration(
@@ -187,8 +191,6 @@ class _AddExpensePageState extends State<AddExpensePage> {
                         },
                       ),
                       const SizedBox(height: 12),
-
-                      // Paid by
                       DropdownButtonFormField<AppUser>(
                         value: _paidBy,
                         decoration: InputDecoration(
@@ -208,38 +210,11 @@ class _AddExpensePageState extends State<AddExpensePage> {
                             .toList(),
                         onChanged: (val) => setState(() => _paidBy = val),
                       ),
-                      const SizedBox(height: 12),
-
-                      // Split type
-                      DropdownButtonFormField<SplitType>(
-                        value: _selectedSplitType,
-                        decoration: InputDecoration(
-                          labelText: 'Split Type',
-                          prefixIcon: const Icon(Icons.call_split),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        items: SplitType.values
-                            .map(
-                              (st) => DropdownMenuItem(
-                            value: st,
-                            child: Text(st.toString().split('.').last),
-                          ),
-                        )
-                            .toList(),
-                        onChanged: (val) {
-                          if (val != null) setState(() => _selectedSplitType = val);
-                        },
-                      ),
                     ],
                   ),
                 ),
               ),
-
               const SizedBox(height: 16),
-
-              // Split among
               Expanded(
                 child: Card(
                   shape: RoundedRectangleBorder(
@@ -254,10 +229,7 @@ class _AddExpensePageState extends State<AddExpensePage> {
                         final isSelected = _splitAmong.contains(user);
                         return CheckboxListTile(
                           value: isSelected,
-                          title: Text(
-                            user.name,
-                            style: GoogleFonts.poppins(),
-                          ),
+                          title: Text(user.name, style: GoogleFonts.poppins()),
                           subtitle: Text(user.email),
                           onChanged: (val) {
                             setState(() {
@@ -274,10 +246,7 @@ class _AddExpensePageState extends State<AddExpensePage> {
                   ),
                 ),
               ),
-
               const SizedBox(height: 12),
-
-              // Notes
               TextFormField(
                 controller: _notesController,
                 decoration: InputDecoration(
@@ -289,10 +258,7 @@ class _AddExpensePageState extends State<AddExpensePage> {
                 ),
                 maxLines: 2,
               ),
-
               const SizedBox(height: 16),
-
-              // Save button
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
@@ -303,9 +269,9 @@ class _AddExpensePageState extends State<AddExpensePage> {
                       borderRadius: BorderRadius.circular(16),
                     ),
                   ),
-                  onPressed: _saveExpense,
+                  onPressed: _updateExpense,
                   child: Text(
-                    'Save Expense',
+                    'Update Expense',
                     style: GoogleFonts.poppins(
                       fontWeight: FontWeight.bold,
                       fontSize: 16,

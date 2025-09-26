@@ -54,6 +54,7 @@ class _AddBudgetPageState extends State<AddBudgetPage> {
       title: _titleController.text.trim(),
       createdAt: DateTime.now(),
       members: selectedMembers,
+      memberIds: selectedMembers.map((u) => u.id).toList(),
       description: _descriptionController.text.trim(),
     );
 
