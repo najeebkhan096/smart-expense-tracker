@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import '../modal/budget_modal.dart';
 import '../modal/expense_modal.dart';
 import '../modal/user_modal.dart';
@@ -163,6 +164,7 @@ class FirebaseService {
         .doc(expense.id)
         .update(expense.toJson());
   }
+
   /// Delete an expense by its ID under a specific budget
   Future<void> deleteExpense({
     required String budgetId,
@@ -213,18 +215,39 @@ class FirebaseService {
     }
   }
 
-
   /// Logout the current user
+  /// Logout the current user (including Google Sign-In)
   Future<void> logout() async {
-      final FirebaseAuth _auth = FirebaseAuth.instance;
-    await _auth.signOut();
+    final FirebaseAuth _auth = FirebaseAuth.instance;
+
+    try {
+      // Sign out from Google if signed in
+      final GoogleSignIn googleSignIn = GoogleSignIn.instance;
+      googleSignIn.initialize(
+        clientId:
+            '561615090696-22b0uded1s21o7pg065lgb553ul59qs4.apps.googleusercontent.com',
+      );
+      try {
+        await googleSignIn.signOut();
+        print('Google user signed out');
+      } catch (e) {
+        print('Error signing out Google user: $e');
+      }
+
+      // Sign out from Firebase
+      await _auth.signOut();
+
+      print('Firebase user signed out');
+    } catch (e) {
+      print('Error during logout: $e');
+      rethrow;
+    }
   }
 
   /// Example: Update user's currency in Firestore
   Future<void> updateUserCurrency(String userId, String currencyCode) async {
-    await FirebaseFirestore.instance
-        .collection('users')
-        .doc(userId)
-        .update({'currencyCode': currencyCode});
+    await FirebaseFirestore.instance.collection('users').doc(userId).update({
+      'currencyCode': currencyCode,
+    });
   }
 }

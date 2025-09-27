@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:smart_expense_tracker/screen/budget/edit_budget_page.dart';
 import 'package:smart_expense_tracker/screen/profile.dart';
+import 'package:smart_expense_tracker/utility/colors.dart';
 import '../modal/budget_modal.dart';
 import '../modal/user_modal.dart';
 import '../services/firebase_service.dart';
@@ -16,7 +17,6 @@ class HomeScreen extends StatelessWidget {
 
   FirebaseService get _firebaseService => FirebaseService();
 
-  /// Stream for current logged-in user
   Stream<AppUser?> get currentUserStream {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return const Stream.empty();
@@ -32,17 +32,14 @@ class HomeScreen extends StatelessWidget {
         );
   }
 
-  /// Delete budget
   Future<void> _deleteBudget(BuildContext context, Budget budget) async {
     try {
-      debugPrint('Deleting budget: ${budget.title} (${budget.id})');
       await _firebaseService.deleteBudget(budget.id);
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Deleted budget: ${budget.title}')),
       );
     } catch (e) {
-      debugPrint('Error deleting budget: $e');
       if (!context.mounted) return;
       ScaffoldMessenger.of(
         context,
@@ -50,7 +47,6 @@ class HomeScreen extends StatelessWidget {
     }
   }
 
-  /// Edit budget
   void _editBudget(BuildContext context, Budget budget) {
     Navigator.push(
       context,
@@ -73,12 +69,10 @@ class HomeScreen extends StatelessWidget {
         }
 
         final appUser = userSnapshot.data!;
-        debugPrint('Current user: ${appUser.name}, id=${appUser.id}');
 
         return Scaffold(
-          backgroundColor: Colors.grey[100],
           appBar: AppBar(
-            backgroundColor: Colors.deepPurple,
+            backgroundColor: AppColors.primary,
             elevation: 0,
             title: Text(
               'Hello, ${appUser.name}',
@@ -114,13 +108,7 @@ class HomeScreen extends StatelessWidget {
             ],
           ),
           body: Container(
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Colors.deepPurple, Colors.purpleAccent],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-            ),
+            decoration: const BoxDecoration(),
             child: StreamBuilder<List<Budget>>(
               stream: _firebaseService.getUserBudgetsStream(appUser.id),
               builder: (context, budgetSnapshot) {
@@ -142,9 +130,6 @@ class HomeScreen extends StatelessWidget {
                 }
 
                 final budgets = budgetSnapshot.data!;
-                debugPrint(
-                  'Streaming ${budgets.length} budgets for user ${appUser.id}',
-                );
 
                 return ListView.builder(
                   padding: const EdgeInsets.all(16),
@@ -159,7 +144,11 @@ class HomeScreen extends StatelessWidget {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => BudgetDetailPage(budget: budget, userCurrency: appUser.currencyCode,),
+                            builder: (_) => BudgetDetailPage(
+                              budget: budget,
+                              userCurrency: appUser.currencyCode,
+                              appUser: appUser,
+                            ),
                           ),
                         );
                       },
@@ -169,15 +158,15 @@ class HomeScreen extends StatelessWidget {
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(20),
                           gradient: LinearGradient(
-                            colors: [color.shade300, color.shade600],
+                            colors: [color.shade400, color.shade700],
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.1),
-                              blurRadius: 10,
-                              offset: const Offset(0, 4),
+                              color: Colors.black.withOpacity(0.15),
+                              blurRadius: 12,
+                              offset: const Offset(0, 6),
                             ),
                           ],
                         ),
@@ -206,11 +195,11 @@ class HomeScreen extends StatelessWidget {
                                   ),
                                   const SizedBox(height: 8),
                                   Text(
-                                    'Total:',
+                                    'Tap to view details',
                                     style: GoogleFonts.poppins(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 16,
+                                      color: Colors.white70,
+                                      fontSize: 14,
+                                      fontStyle: FontStyle.italic,
                                     ),
                                   ),
                                 ],
@@ -250,11 +239,13 @@ class HomeScreen extends StatelessWidget {
             ),
           ),
           floatingActionButton: FloatingActionButton(
-            backgroundColor: Colors.orange,
+            backgroundColor: AppColors.primary,
             onPressed: () {
-              Navigator.of(
-                context,
-              ).push(MaterialPageRoute(builder: (_) => const AddBudgetPage()));
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => AddBudgetPage(currentUserId: appUser.id),
+                ),
+              );
             },
             child: const Icon(Icons.add, color: Colors.white),
           ),

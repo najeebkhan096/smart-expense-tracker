@@ -3,9 +3,11 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../modal/budget_modal.dart';
 import '../../modal/user_modal.dart';
 import '../../services/firebase_service.dart';
+import '../../utility/colors.dart';
 
 class AddBudgetPage extends StatefulWidget {
-  const AddBudgetPage({super.key});
+  final String currentUserId; // pass logged-in user id here
+  const AddBudgetPage({super.key, required this.currentUserId});
 
   @override
   State<AddBudgetPage> createState() => _AddBudgetPageState();
@@ -31,6 +33,10 @@ class _AddBudgetPageState extends State<AddBudgetPage> {
     final snapshot = await _firebaseService.getAllUsers();
     setState(() {
       allUsers = snapshot;
+      // select the logged-in user by default
+      if (!selectedMemberIds.contains(widget.currentUserId)) {
+        selectedMemberIds.add(widget.currentUserId);
+      }
     });
   }
 
@@ -44,7 +50,6 @@ class _AddBudgetPageState extends State<AddBudgetPage> {
 
     setState(() => _isLoading = true);
 
-    // Map selectedMemberIds to AppUser objects
     final selectedMembers = allUsers
         .where((user) => selectedMemberIds.contains(user.id))
         .toList();
@@ -80,123 +85,161 @@ class _AddBudgetPageState extends State<AddBudgetPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[100],
+      backgroundColor: AppColors.background,
       appBar: AppBar(
+        foregroundColor: Colors.white,
         title: Text(
           'Add Budget',
-          style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
+          style: GoogleFonts.poppins(
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
         ),
-        backgroundColor: Colors.deepPurple,
-        elevation: 0,
+        backgroundColor: AppColors.primary,
+        elevation: 2,
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : Container(
-        padding: const EdgeInsets.all(16),
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Colors.deepPurple, Colors.purpleAccent],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-        ),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            children: [
-              Card(
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                elevation: 4,
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Column(
-                    children: [
-                      TextFormField(
-                        controller: _titleController,
-                        decoration: InputDecoration(
-                          labelText: 'Budget Title',
-                          prefixIcon: const Icon(Icons.title),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        validator: (val) => val == null || val.isEmpty
-                            ? 'Enter title'
-                            : null,
-                      ),
-                      const SizedBox(height: 12),
-                      TextFormField(
-                        controller: _descriptionController,
-                        decoration: InputDecoration(
-                          labelText: 'Description (optional)',
-                          prefixIcon: const Icon(Icons.description),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        maxLines: 2,
-                      ),
-                    ],
+          : SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          children: [
+            // 🔹 Form Container
+            Container(
+              decoration: BoxDecoration(
+                color: AppColors.card,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.shadow,
+                    blurRadius: 12,
+                    offset: const Offset(0, 6),
                   ),
+                ],
+              ),
+              padding: const EdgeInsets.all(20),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  children: [
+                    TextFormField(
+                      controller: _titleController,
+                      decoration: InputDecoration(
+                        labelText: 'Budget Title',
+                        prefixIcon: const Icon(Icons.title),
+                        filled: true,
+                        fillColor: AppColors.inputBackground,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          borderSide: BorderSide.none,
+                        ),
+                      ),
+                      validator: (val) =>
+                      val == null || val.isEmpty ? 'Enter title' : null,
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: _descriptionController,
+                      decoration: InputDecoration(
+                        labelText: 'Description (optional)',
+                        prefixIcon: const Icon(Icons.description),
+                        filled: true,
+                        fillColor: AppColors.inputBackground,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          borderSide: BorderSide.none,
+                        ),
+                      ),
+                      maxLines: 3,
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 16),
-              Expanded(
-                child: Card(
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
+            ),
+
+            const SizedBox(height: 24),
+
+            // 🔹 Members Selection with Checkboxes
+            Container(
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: AppColors.card,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.shadow,
+                    blurRadius: 12,
+                    offset: const Offset(0, 6),
                   ),
-                  color: Colors.white70,
-                  elevation: 3,
-                  child: Padding(
-                    padding: const EdgeInsets.all(8),
-                    child: ListView(
-                      children: allUsers.map((user) {
-                        final isSelected = selectedMemberIds.contains(user.id);
-                        return CheckboxListTile(
-                          value: isSelected,
-                          title: Text(user.name, style: GoogleFonts.poppins()),
-                          subtitle: Text(user.email, style: GoogleFonts.poppins(fontSize: 12)),
-                          onChanged: (val) {
-                            setState(() {
-                              if (val == true) {
-                                selectedMemberIds.add(user.id);
-                              } else {
+                ],
+              ),
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text("Select Members",
+                      style: GoogleFonts.poppins(
+                          fontWeight: FontWeight.bold, fontSize: 16)),
+                  const SizedBox(height: 12),
+                  allUsers.isEmpty
+                      ? const Center(child: CircularProgressIndicator())
+                      : Column(
+                    children: allUsers.map((user) {
+                      final isSelected =
+                      selectedMemberIds.contains(user.id);
+                      return CheckboxListTile(
+                        title: Text(user.name,
+                            style: GoogleFonts.poppins()),
+                        subtitle: Text(user.email,
+                            style: GoogleFonts.poppins(fontSize: 12)),
+                        value: isSelected,
+                        onChanged: (val) {
+                          setState(() {
+                            if (val == true) {
+                              selectedMemberIds.add(user.id);
+                            } else {
+                              if (user.id != widget.currentUserId) {
                                 selectedMemberIds.remove(user.id);
                               }
-                            });
-                          },
-                        );
-                      }).toList(),
-                    ),
+                            }
+                          });
+                        },
+                        controlAffinity:
+                        ListTileControlAffinity.leading,
+                      );
+                    }).toList(),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 32),
+
+            // 🔹 Save Button
+            SizedBox(
+              height: 60,
+              width: double.infinity,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  elevation: 6,
+                ),
+                onPressed: _saveBudget,
+                child: Text(
+                  'Save Budget',
+                  style: GoogleFonts.poppins(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
+                    color: Colors.white
                   ),
                 ),
               ),
-              const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.orangeAccent,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                  ),
-                  onPressed: _saveBudget,
-                  child: Text(
-                    'Save Budget',
-                    style: GoogleFonts.poppins(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

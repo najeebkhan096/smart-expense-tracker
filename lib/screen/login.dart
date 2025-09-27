@@ -11,8 +11,8 @@ class LoginScreen extends StatelessWidget {
     try {
       // Web: use signInWithPopup
       GoogleAuthProvider googleProvider = GoogleAuthProvider();
-      UserCredential userCredential = await FirebaseAuth.instance
-          .signInWithPopup(googleProvider);
+      UserCredential userCredential =
+      await FirebaseAuth.instance.signInWithPopup(googleProvider);
 
       final user = userCredential.user;
       if (user != null) {
@@ -32,19 +32,88 @@ class LoginScreen extends StatelessWidget {
         );
       }
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Login failed: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Login failed: $e')),
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Center(
-        child: ElevatedButton(
-          onPressed: () => signInWithGoogle(context),
-          child: const Text('Sign in with Google'),
+      backgroundColor: Colors.white,
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // Logo or illustration
+              const Spacer(),
+              Icon(
+                Icons.lock_outline_rounded,
+                size: 100,
+                color: Colors.deepPurple.shade400,
+              ),
+              const SizedBox(height: 20),
+
+              // App Title
+              Text(
+                "Welcome Back",
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey.shade900,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                "Sign in to continue",
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.grey.shade600,
+                ),
+              ),
+
+              const Spacer(),
+
+              // Google Sign-In Button
+              SizedBox(
+                width: double.infinity,
+                height: 60,
+                child: ElevatedButton.icon(
+                  onPressed: () => signInWithGoogle(context),
+                  icon: Image.asset(
+                    'images/google.webp',
+                    height: 24,
+                  ),
+                  label: const Text(
+                    "Sign in with Google",
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: Colors.black87,
+                    side: BorderSide(color: Colors.grey.shade300),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    elevation: 2,
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 20),
+              Text(
+                "By continuing, you agree to our Terms & Privacy Policy",
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+              ),
+
+              const Spacer(),
+            ],
+          ),
         ),
       ),
     );
